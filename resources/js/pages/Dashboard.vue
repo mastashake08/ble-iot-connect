@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import BLEDeviceCard from '@/components/BLEDeviceCard.vue'
-import BLESensorCard from '@/components/BLESensorCard.vue'
+// Removed BLESensorCard - users can view all data via Services Explorer
 import BLEServicesExplorer from '@/components/BLEServicesExplorer.vue'
 import BLEDataStream from '@/components/BLEDataStream.vue'
 import { dashboard } from '@/routes'
@@ -38,10 +38,24 @@ const {
 
 // Sensor Data
 const batteryLevel = ref<number | undefined>(undefined)
-const temperature = ref<number | undefined>(undefined)
-const humidity = ref<number | undefined>(undefined)
-const heartRate = ref<number | undefined>(undefined)
 const signalStrength = ref<number>(75) // Mock RSSI
+
+// User-provided service UUIDs
+const customServiceUUIDs = ref<string>(`${GATT_SERVICES.BATTERY_SERVICE}
+${GATT_SERVICES.DEVICE_INFORMATION}
+${GATT_SERVICES.ENVIRONMENTAL_SENSING}
+${GATT_SERVICES.HEART_RATE}
+${GATT_SERVICES.GENERIC_ACCESS}
+${GATT_SERVICES.GENERIC_ATTRIBUTE}`)
+const showServiceInput = ref(false)
+
+// Parse user input into array of UUIDs
+const parseServiceUUIDs = (): string[] => {
+    return customServiceUUIDs.value
+        .split(/[,\n]/)  // Split by comma or newline
+        .map(uuid => uuid.trim())
+        .filter(uuid => uuid.length > 0)  // Remove empty strings
+}
 
 // Data Stream
 const dataStreamRef = ref<InstanceType<typeof BLEDataStream> | null>(null)
@@ -59,25 +73,23 @@ const dataRate = ref(0)
  */
 const handleConnect = async () => {
     try {
+        const serviceUUIDs = parseServiceUUIDs()
+        
         await connect(
             {
                 // Optionally filter by services
-                // services: [GATT_SERVICES.BATTERY_SERVICE],
+                // services: serviceUUIDs,
             },
             {
                 discoverAllServices: true,
                 autoReconnect: true,
-                optionalServices: [
-                    GATT_SERVICES.BATTERY_SERVICE,
-                    GATT_SERVICES.DEVICE_INFORMATION,
-                    GATT_SERVICES.ENVIRONMENTAL_SENSING,
-                    GATT_SERVICES.HEART_RATE,
-                    GATT_SERVICES.GENERIC_ACCESS,
-                    GATT_SERVICES.GENERIC_ATTRIBUTE,
-                ],
+                optionalServices: serviceUUIDs,
             }
         )
 
+        // Hide service input after successful connection
+        showServiceInput.value = false
+        
         // Read initial values
         await readInitialValues()
     } catch (err) {
@@ -94,9 +106,6 @@ const handleDisconnect = async () => {
         await disconnect()
         // Reset sensor data
         batteryLevel.value = undefined
-        temperature.value = undefined
-        humidity.value = undefined
-        heartRate.value = undefined
     } catch (err) {
         console.error('Disconnect failed:', err)
     }
@@ -183,17 +192,9 @@ const handleSubscribeCharacteristic = async (serviceUuid: string, charUuid: stri
             // Display in data stream
             dataStreamRef.value?.addData(data, parsed)
             
-            // Update sensor values based on characteristic
+            // Update battery level if it's the battery characteristic
             if (charUuid === GATT_CHARACTERISTICS.BATTERY_LEVEL) {
                 batteryLevel.value = data.getUint8(0)
-            } else if (charUuid === GATT_CHARACTERISTICS.TEMPERATURE) {
-                temperature.value = data.getInt16(0, true) / 100
-            } else if (charUuid === GATT_CHARACTERISTICS.HUMIDITY) {
-                humidity.value = data.getUint16(0, true) / 100
-            } else if (charUuid === GATT_CHARACTERISTICS.HEART_RATE_MEASUREMENT) {
-                const flags = data.getUint8(0)
-                const is16Bit = flags & 0x01
-                heartRate.value = is16Bit ? data.getUint16(1, true) : data.getUint8(1)
             }
         })
 
@@ -209,10 +210,7 @@ const startMockData = () => {
     
     setInterval(() => {
         if (connectionState.value === 'connected') {
-            // Update mock sensor values
-            temperature.value = 20 + Math.random() * 10
-            humidity.value = 40 + Math.random() * 30
-            heartRate.value = 60 + Math.floor(Math.random() * 40)
+            // Update mock data rate
             dataRate.value = Math.floor(Math.random() * 1000)
         }
     }, 2000)
@@ -260,8 +258,8 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- Top Row: Device Card and Sensor Cards -->
-            <div class="grid auto-rows-min gap-4 md:grid-cols-4">
+            <!-- Top Row: Device Card and Service UUID Configuration -->
+            <div class="grid auto-rows-min gap-4 md:grid-cols-1">
                 <!-- Device Connection Card -->
                 <BLEDeviceCard
                     :device="deviceInfo"
@@ -271,34 +269,45 @@ onMounted(async () => {
                     @connect="handleConnect"
                     @disconnect="handleDisconnect"
                 />
-
-                <!-- Sensor Cards -->
-                <BLESensorCard
-                    title="Temperature"
-                    :value="temperature?.toFixed(1) ?? '--'"
-                    unit="°C"
-                    icon="🌡️"
-                    color="orange"
-                    :loading="connectionState === 'connecting'"
-                />
-
-                <BLESensorCard
-                    title="Humidity"
-                    :value="humidity?.toFixed(1) ?? '--'"
-                    unit="%"
-                    icon="💧"
-                    color="blue"
-                    :loading="connectionState === 'connecting'"
-                />
-
-                <BLESensorCard
-                    title="Heart Rate"
-                    :value="heartRate ?? '--'"
-                    unit="bpm"
-                    icon="❤️"
-                    color="red"
-                    :loading="connectionState === 'connecting'"
-                />
+                
+                <!-- Service UUID Configuration -->
+                <div
+                    v-if="connectionState === 'disconnected'"
+                    class="rounded-lg border border-sidebar-border/70 bg-white p-6 dark:bg-gray-900 dark:border-sidebar-border"
+                >
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                Service UUIDs
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">
+                                Specify which services to access (one per line or comma-separated)
+                            </p>
+                        </div>
+                        <button
+                            @click="showServiceInput = !showServiceInput"
+                            class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                        >
+                            {{ showServiceInput ? 'Hide' : 'Customize' }}
+                        </button>
+                    </div>
+                    
+                    <div v-if="showServiceInput" class="space-y-3">
+                        <textarea
+                            v-model="customServiceUUIDs"
+                            rows="6"
+                            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-mono text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="Enter UUIDs (one per line or comma-separated)"
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            💡 Tip: Include all services you want to access before connecting. Use full 128-bit UUIDs or standard 16-bit UUIDs.
+                        </p>
+                    </div>
+                    
+                    <div v-else class="text-sm text-gray-600 dark:text-gray-400">
+                        {{ parseServiceUUIDs().length }} service(s) configured
+                    </div>
+                </div>
             </div>
 
             <!-- Bottom Row: Services Explorer and Data Stream -->
