@@ -319,7 +319,15 @@ onMounted(async () => {
                     </div>
                     
                     <div v-else class="text-sm text-gray-600 dark:text-gray-400">
-                 div class="flex flex-col gap-4">
+                        {{ parseServiceUUIDs().length }} service(s) configured
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Services Explorer and Data Stream -->
+            <div class="grid gap-4 md:grid-cols-2">
+                <!-- GATT Services Explorer -->
+                <div class="flex flex-col gap-4">
                     <!-- Input Mode Toggle -->
                     <div
                         v-if="connectionState === 'connected'"
@@ -366,15 +374,7 @@ onMounted(async () => {
                         @write-characteristic="handleWriteCharacteristic"
                         @subscribe-characteristic="handleSubscribeCharacteristic"
                     />
-                </divclass="grid gap-4 md:grid-cols-2">
-                <!-- GATT Services Explorer -->
-                <BLEServicesExplorer
-                    :services="services"
-                    :loading="connectionState === 'connecting'"
-                    @read-characteristic="handleReadCharacteristic"
-                    @write-characteristic="handleWriteCharacteristic"
-                    @subscribe-characteristic="handleSubscribeCharacteristic"
-                />
+                </div>
 
                 <!-- Real-time Data Stream -->
                 <BLEDataStream
