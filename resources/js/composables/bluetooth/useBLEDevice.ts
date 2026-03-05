@@ -52,18 +52,32 @@ export function useBLEDevice(): UseBLEDevice {
 
       connectionState.value = 'connecting'
 
-      // Request device
-      const requestOptions: RequestDeviceOptions = {
-        filters: filters?.services
-          ? [{ services: filters.services }]
-          : [{ acceptAllDevices: true } as any],
-        optionalServices: options?.optionalServices || [],
+      // Request device - construct valid filters or use acceptAllDevices
+      let requestOptions: RequestDeviceOptions
+
+      // Build filters array based on provided options
+      const filtersList: BluetoothLEScanFilter[] = []
+      
+      if (filters?.name) {
+        filtersList.push({ name: filters.name })
+      } else if (filters?.namePrefix) {
+        filtersList.push({ namePrefix: filters.namePrefix })
+      } else if (filters?.services) {
+        filtersList.push({ services: filters.services })
       }
 
-      if (filters?.name) {
-        requestOptions.filters = [{ name: filters.name }]
-      } else if (filters?.namePrefix) {
-        requestOptions.filters = [{ namePrefix: filters.namePrefix }]
+      // Use filters if we have any, otherwise acceptAllDevices
+      if (filtersList.length > 0) {
+        requestOptions = {
+          filters: filtersList,
+          optionalServices: options?.optionalServices || [],
+        }
+      } else {
+        // No filters provided - use acceptAllDevices
+        requestOptions = {
+          acceptAllDevices: true,
+          optionalServices: options?.optionalServices || [],
+        }
       }
 
       device.value = await navigator.bluetooth!.requestDevice(requestOptions)
