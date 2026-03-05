@@ -12,7 +12,7 @@ import { useBLEDevice } from '@/composables/bluetooth/useBLEDevice'
 import { useBLEStream } from '@/composables/bluetooth/useBLEStream'
 import { useBLEWorker } from '@/composables/bluetooth/useBLEWorker'
 import { GATT_CHARACTERISTICS, GATT_SERVICES } from '@/types/bluetooth'
-import { dataViewToHex } from '@/lib/bluetooth/utils'
+import { dataViewToHex, stringToArrayBuffer, hexToArrayBuffer } from '@/lib/bluetooth/utils'
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -20,6 +20,10 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: dashboard(),
     },
 ]
+
+// Input mode for write commands
+type InputMode = 'string' | 'hex'
+const inputMode = ref<InputMode>('hex')
 
 // BLE Device Management
 const {
@@ -158,21 +162,29 @@ const handleReadCharacteristic = async (serviceUuid: string, charUuid: string) =
  * Handle writing to a characteristic
  */
 const handleWriteCharacteristic = async (serviceUuid: string, charUuid: string) => {
-    const input = prompt('Enter value to write (hex format, e.g., 01 02 03):')
+    const promptMessage = inputMode.value === 'hex' 
+        ? 'Enter value to write (hex format, e.g., 01 02 03):'
+        : 'Enter value to write (string):';
+    
+    const input = prompt(promptMessage)
     if (!input) return
 
     try {
-        // Convert hex string to ArrayBuffer
-        const hexString = input.replace(/\s/g, '')
-        const bytes = new Uint8Array(hexString.length / 2)
-        for (let i = 0; i < bytes.length; i++) {
-            bytes[i] = parseInt(hexString.substr(i * 2, 2), 16)
+        let buffer: ArrayBuffer
+        
+        if (inputMode.value === 'hex') {
+            // Convert hex string to ArrayBuffer
+            buffer = hexToArrayBuffer(input)
+        } else {
+            // Convert string to ArrayBuffer
+            buffer = stringToArrayBuffer(input)
         }
         
-        await writeCharacteristic(serviceUuid, charUuid, bytes.buffer)
-        console.log('Write successful')
+        await writeCharacteristic(serviceUuid, charUuid, buffer)
+        console.log('Write successful:', { mode: inputMode.value, input })
     } catch (err) {
         console.error('Write failed:', err)
+        alert(`Write failed: ${err instanceof Error ? err.message : String(err)}`)
     }
 }
 
@@ -307,13 +319,54 @@ onMounted(async () => {
                     </div>
                     
                     <div v-else class="text-sm text-gray-600 dark:text-gray-400">
-                        {{ parseServiceUUIDs().length }} service(s) configured
+                 div class="flex flex-col gap-4">
+                    <!-- Input Mode Toggle -->
+                    <div
+                        v-if="connectionState === 'connected'"
+                        class="rounded-lg border border-sidebar-border/70 bg-white p-4 dark:bg-gray-900 dark:border-sidebar-border"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    Write Input Mode
+                                </h3>
+                                <p class="text-xs text-gray-600 dark:text-gray-400">
+                                    Choose how to enter data when writing to characteristics
+                                </p>
+                            </div>
+                            <div class="flex rounded-lg border border-gray-300 dark:border-gray-700">
+                                <button
+                                    @click="inputMode = 'hex'"
+                                    :class="{
+                                        'bg-blue-500 text-white': inputMode === 'hex',
+                                        'bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300': inputMode !== 'hex',
+                                    }"
+                                    class="px-3 py-1.5 text-sm font-medium transition-colors rounded-l-lg"
+                                >
+                                    HEX
+                                </button>
+                                <button
+                                    @click="inputMode = 'string'"
+                                    :class="{
+                                        'bg-blue-500 text-white': inputMode === 'string',
+                                        'bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300': inputMode !== 'string',
+                                    }"
+                                    class="border-l border-gray-300 px-3 py-1.5 text-sm font-medium transition-colors dark:border-gray-700 rounded-r-lg"
+                                >
+                                    STRING
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Bottom Row: Services Explorer and Data Stream -->
-            <div class="grid gap-4 md:grid-cols-2">
+                    
+                    <BLEServicesExplorer
+                        :services="services"
+                        :loading="connectionState === 'connecting'"
+                        @read-characteristic="handleReadCharacteristic"
+                        @write-characteristic="handleWriteCharacteristic"
+                        @subscribe-characteristic="handleSubscribeCharacteristic"
+                    />
+                </divclass="grid gap-4 md:grid-cols-2">
                 <!-- GATT Services Explorer -->
                 <BLEServicesExplorer
                     :services="services"
