@@ -141,8 +141,9 @@ const handleReadCharacteristic = async (serviceUuid: string, charUuid: string) =
     try {
         const value = await readCharacteristic(serviceUuid, charUuid)
         
-        // Process through worker
-        const parsed = await parseData(value.buffer, 'hex')
+        // Process through worker - convert to ArrayBuffer
+        const arrayBuffer = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)
+        const parsed = await parseData(arrayBuffer, 'hex')
         
         // Display in data stream
         dataStreamRef.value?.addData(value, parsed)
@@ -184,8 +185,9 @@ const handleSubscribeCharacteristic = async (serviceUuid: string, charUuid: stri
         await subscribeToNotifications(serviceUuid, charUuid, async (data) => {
             totalMessages.value++
             
-            // Process through worker
-            const parsed = await parseData(data.buffer, 'uint8', { 
+            // Process through worker - convert to ArrayBuffer
+            const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+            const parsed = await parseData(arrayBuffer, 'uint8', { 
                 deviceId: device.value?.id 
             })
             

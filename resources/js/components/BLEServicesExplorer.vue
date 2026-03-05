@@ -144,9 +144,12 @@ const characteristicCount = computed(() => {
                 <div class="flex-1">
                   <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {{ char.name }}
+                    <span v-if="char.name !== `Characteristic ${shortenUUID(char.uuid)}`" class="text-xs text-gray-500 dark:text-gray-400">
+                      ({{ shortenUUID(char.uuid) }})
+                    </span>
                   </p>
-                  <p class="mt-0.5 text-xs font-mono text-gray-500 dark:text-gray-500">
-                    {{ shortenUUID(char.uuid) }}
+                  <p class="mt-0.5 text-xs font-mono text-gray-500 dark:text-gray-500 break-all">
+                    {{ char.uuid }}
                   </p>
                 </div>
                 <div class="flex gap-1">

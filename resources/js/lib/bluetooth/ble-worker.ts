@@ -194,24 +194,42 @@ function calculateDataRate(deviceId: string): number {
 // Parsing helpers
 
 function parseUTF8(dataView: DataView): string {
-  const decoder = new TextDecoder('utf-8')
-  return decoder.decode(dataView.buffer)
+  const decoder = new TextDecoder('utf-8', { fatal: false })
+  const uint8Array = new Uint8Array(
+    dataView.buffer,
+    dataView.byteOffset,
+    dataView.byteLength
+  )
+  return decoder.decode(uint8Array)
 }
 
 function parseUTF16(dataView: DataView): string {
-  const decoder = new TextDecoder('utf-16')
-  return decoder.decode(dataView.buffer)
+  const decoder = new TextDecoder('utf-16', { fatal: false })
+  const uint8Array = new Uint8Array(
+    dataView.buffer,
+    dataView.byteOffset,
+    dataView.byteLength
+  )
+  return decoder.decode(uint8Array)
 }
 
 function parseHex(dataView: DataView): string {
-  const bytes = new Uint8Array(dataView.buffer)
+  const bytes = new Uint8Array(
+    dataView.buffer,
+    dataView.byteOffset,
+    dataView.byteLength
+  )
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
 }
 
 function parseBinary(dataView: DataView): number[] {
-  const bytes = new Uint8Array(dataView.buffer)
+  const bytes = new Uint8Array(
+    dataView.buffer,
+    dataView.byteOffset,
+    dataView.byteLength
+  )
   return Array.from(bytes)
 }
 

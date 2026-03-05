@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import { dataViewToHex, dataViewToString } from '@/lib/bluetooth/utils'
+import { dataViewToHex, dataViewToString, dataViewToJSON } from '@/lib/bluetooth/utils'
 
 interface DataEntry {
   id: string
@@ -29,14 +29,21 @@ const autoScroll = ref(true)
 const addData = (data: DataView, parsed?: unknown) => {
   if (isPaused.value) return
 
+  let value: string
+  if (displayMode.value === 'string') {
+    value = dataViewToString(data)
+  } else if (displayMode.value === 'hex') {
+    value = dataViewToHex(data)
+  } else {
+    // For parsed/JSON mode, try to parse the data if no parsed value provided
+    const jsonData = parsed !== undefined ? parsed : dataViewToJSON(data)
+    value = JSON.stringify(jsonData, null, 2)
+  }
+
   const entry: DataEntry = {
     id: crypto.randomUUID(),
     timestamp: new Date(),
-    value: displayMode.value === 'string' 
-      ? dataViewToString(data)
-      : displayMode.value === 'hex'
-      ? dataViewToHex(data)
-      : JSON.stringify(parsed || {}),
+    value,
     type: displayMode.value,
     raw: data,
   }
@@ -65,17 +72,28 @@ const togglePause = () => {
 const changeDisplayMode = (mode: 'hex' | 'string' | 'parsed') => {
   displayMode.value = mode
   // Reformat existing entries
-  dataEntries.value = dataEntries.value.map((entry: DataEntry) => ({
-    ...entry,
-    value: entry.raw
-      ? mode === 'string'
-        ? dataViewToString(entry.raw)
-        : mode === 'hex'
-        ? dataViewToHex(entry.raw)
-        : entry.value
-      : entry.value,
-    type: mode,
-  }))
+  dataEntries.value = dataEntries.value.map((entry: DataEntry) => {
+    if (!entry.raw) {
+      return entry
+    }
+
+    let value: string
+    if (mode === 'string') {
+      value = dataViewToString(entry.raw)
+    } else if (mode === 'hex') {
+      value = dataViewToHex(entry.raw)
+    } else {
+      // For parsed/JSON mode
+      const jsonData = dataViewToJSON(entry.raw)
+      value = JSON.stringify(jsonData, null, 2)
+    }
+
+    return {
+      ...entry,
+      value,
+      type: mode,
+    }
+  })
 }
 
 const formatTime = (date: Date) => {

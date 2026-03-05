@@ -259,8 +259,38 @@ export function dataViewToHex(dataView: DataView): string {
  * Convert DataView to UTF-8 string
  */
 export function dataViewToString(dataView: DataView): string {
-  const decoder = new TextDecoder('utf-8')
-  return decoder.decode(dataView.buffer)
+  try {
+    const decoder = new TextDecoder('utf-8', { fatal: false })
+    const uint8Array = new Uint8Array(
+      dataView.buffer,
+      dataView.byteOffset,
+      dataView.byteLength
+    )
+    return decoder.decode(uint8Array)
+  } catch (error) {
+    console.error('Failed to decode string:', error)
+    return dataViewToHex(dataView) // Fallback to hex
+  }
+}
+
+/**
+ * Try to parse DataView as JSON
+ */
+export function dataViewToJSON(dataView: DataView): unknown {
+  try {
+    const str = dataViewToString(dataView)
+    // Try to parse as JSON
+    return JSON.parse(str)
+  } catch (error) {
+    // If not valid JSON, return the string representation
+    const str = dataViewToString(dataView)
+    // Check if it looks like a number
+    const num = Number(str)
+    if (!isNaN(num) && str.trim() !== '') {
+      return num
+    }
+    return str
+  }
 }
 
 /**
