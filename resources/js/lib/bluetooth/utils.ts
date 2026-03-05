@@ -164,6 +164,12 @@ export async function discoverGATT(
 
   try {
     const gattServices = await server.getPrimaryServices()
+    
+    if (gattServices.length === 0) {
+      throw new Error(
+        'No services found. Make sure to specify the services you want to access in "optionalServices" when connecting.'
+      )
+    }
 
     for (const service of gattServices) {
       const characteristics: BLECharacteristic[] = []
@@ -206,8 +212,15 @@ export async function discoverGATT(
         characteristics,
       })
     }
+    
+    if (services.length === 0) {
+      throw new Error(
+        'No services could be accessed. Ensure services are listed in "optionalServices" during connection.'
+      )
+    }
   } catch (error) {
     console.error('Failed to discover GATT:', error)
+    throw error
   }
 
   return services

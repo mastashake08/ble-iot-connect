@@ -11,7 +11,7 @@ import type { BreadcrumbItem } from '@/types'
 import { useBLEDevice } from '@/composables/bluetooth/useBLEDevice'
 import { useBLEStream } from '@/composables/bluetooth/useBLEStream'
 import { useBLEWorker } from '@/composables/bluetooth/useBLEWorker'
-import { GATT_CHARACTERISTICS } from '@/types/bluetooth'
+import { GATT_CHARACTERISTICS, GATT_SERVICES } from '@/types/bluetooth'
 import { dataViewToHex } from '@/lib/bluetooth/utils'
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -68,10 +68,12 @@ const handleConnect = async () => {
                 discoverAllServices: true,
                 autoReconnect: true,
                 optionalServices: [
-                    GATT_CHARACTERISTICS.BATTERY_LEVEL,
-                    GATT_CHARACTERISTICS.TEMPERATURE,
-                    GATT_CHARACTERISTICS.HUMIDITY,
-                    GATT_CHARACTERISTICS.HEART_RATE_MEASUREMENT,
+                    GATT_SERVICES.BATTERY_SERVICE,
+                    GATT_SERVICES.DEVICE_INFORMATION,
+                    GATT_SERVICES.ENVIRONMENTAL_SENSING,
+                    GATT_SERVICES.HEART_RATE,
+                    GATT_SERVICES.GENERIC_ACCESS,
+                    GATT_SERVICES.GENERIC_ATTRIBUTE,
                 ],
             }
         )
